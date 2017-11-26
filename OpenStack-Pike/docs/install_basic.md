@@ -1860,7 +1860,7 @@
 
 	```sh
 	enable_vxlan = true
-	local_ip = 10.10.10.190
+	local_ip = 10.10.20.190
 	l2_population = true
 	```
 	
@@ -2019,7 +2019,7 @@
 
 	```sh
 	enable_vxlan = true
-	local_ip = 10.10.10.191
+	local_ip = 10.10.20.191
 	l2_population = true
 	```
 	
@@ -2174,11 +2174,9 @@
 	```
 	
 	```sh
-	SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-
 	CACHES = {
 		'default': {
-				'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+				'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
 				'LOCATION': 'controller:11211',
 		}
 	}
