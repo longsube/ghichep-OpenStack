@@ -96,16 +96,16 @@ service keystone restart
 ### 4.2. Cấu hình Datasource
 #### Cấu hình các thông số cho direct mode
 
-![directmode](images/grafana_gnocchi_direct_1.png)
+![directmode](../images/grafana_gnocchi_direct_1.png)
 
 #### Kiểm tra kết nối
 
-![directmode](images/grafana_gnocchi_direct_2.png)
+![directmode](../images/grafana_gnocchi_direct_2.png)
 
 #### Cấu hình các thông số cho proxy mode
 
-![directmode](images/grafana_gnocchi_proxy_1.png)
+![directmode](../images/grafana_gnocchi_proxy_1.png)
 
 #### Kiểm tra kết nối
 
-![directmode](images/grafana_gnocchi_proxy_2.png)
+![directmode](../images/grafana_gnocchi_proxy_2.png)
