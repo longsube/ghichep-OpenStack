@@ -12,7 +12,7 @@ CTL:
   ![](../images/ip_pike.png)
   
 <a name=3></a>
-## 3. Cài đặt môi trường
+## 3. Thực hiện trên host Controller
 - Lưu ý: 
 
   ```sh
@@ -21,154 +21,286 @@ CTL:
   - Password thống nhất cho tất cả các dịch vụ là Welcome123
   ```
 
-## Cài 
-mysql -u root -p
-GRANT ALL PRIVILEGES ON manila.* TO 'manila'@'localhost' \
-  IDENTIFIED BY 'Welcome123';
-GRANT ALL PRIVILEGES ON manila.* TO 'manila'@'%' \
-  IDENTIFIED BY 'Welcome123';
- FLUSH PRIVILEGES;
- exit;
+### 3.1. Cài đặt
+- Cài đặt gói để cài OpenStack PIKE
 
- source /root/admin-openrc
+  ```sh
+  apt install software-properties-common -y
+  add-apt-repository cloud-archive:pike -y
+  ``` 
+  
+- Cập nhật các gói phần mềm
 
-openstack user create --domain default --password Welcome123 manila
+  ```sh
+  apt -y update && apt -y dist-upgrade
+  ```
 
-openstack role add --project service --user manila admin
+### 3.2. Tạo database cho manila
+- 1. Đăng nhập vào MariaDB
 
-openstack service create --name manila \
+  ```sh
+  mysql -u root -pWelcome123
+  ```
+  
+- 2. Tạo database cho manila
+
+  ```sh
+  CREATE DATABASE manila;
+  ```
+  
+- 3. Cấp quyền truy cập vào cơ sở dữ liệu manila.
+  
+  ```sh
+  GRANT ALL PRIVILEGES ON manila.* TO 'manila'@'localhost' IDENTIFIED BY 'Welcome123';
+  GRANT ALL PRIVILEGES ON manila.* TO 'manila'@'%' IDENTIFIED BY 'Welcome123';
+  FLUSH PRIVILEGES;
+  exit;
+  ```
+
+### 3.3. Tạo user manila, gán quyền và tạo endpoint API cho dịch vụ manila
+
+- Chạy script biến môi trường: `source admin-openrc`
+
+- Tạo user manila:
+
+  ```sh
+  ~# openstack user create --domain default --password Welcome123 manila
+  ```
+- Thêm role admin cho user manila trên project service
+
+  ```sh
+  openstack role add --project service --user manila admin
+  ```
+
+- Tạo dịch vụ có tên manila
+
+  ```sh
+  ~# openstack service create --name manila \
   --description "OpenStack Shared File Systems" share
+  ```
 
-openstack service create --name manilav2 \
+- Tạo dịch vụ có tên manila v2
+
+  ```sh
+  openstack service create --name manilav2 \
   --description "OpenStack Shared File Systems" sharev2
+  ```
 
- openstack endpoint create --region RegionOne \
+- Tạo các endpoint cho dịch vụ manila
+
+  ```sh
+  openstack endpoint create --region RegionOne \
   share public http://controller:8786/v1/%\(tenant_id\)s
-openstack endpoint create --region RegionOne \
+
+  openstack endpoint create --region RegionOne \
   share internal http://controller:8786/v1/%\(tenant_id\)s
-openstack endpoint create --region RegionOne \
+
+  openstack endpoint create --region RegionOne \
   share admin http://controller:8786/v1/%\(tenant_id\)s
+  ```
 
-openstack endpoint create --region RegionOne \
+- Tạo các endpoint cho dịch vụ manila v2
+
+  ```sh
+  openstack endpoint create --region RegionOne \
   sharev2 public http://controller:8786/v2/%\(tenant_id\)s
-openstack endpoint create --region RegionOne \
+
+  openstack endpoint create --region RegionOne \
   sharev2 internal http://controller:8786/v2/%\(tenant_id\)s
-openstack endpoint create --region RegionOne \
+
+  openstack endpoint create --region RegionOne \
   sharev2 admin http://controller:8786/v2/%\(tenant_id\)s
+  ```
 
-apt-get install manila-api manila-scheduler python-manilaclient -y
-cp /etc/manila/manila.conf  /etc/manila/manila.conf.org
+### 3.4. Cài đặt và cấu hình cho dịch vụ manila
+- Cài đặt gói manila
 
-[database]
-...
-connection = mysql+pymysql://manila:Welcome123@controller/manila
+  ```sh
+  apt-get install manila-api manila-scheduler python-manilaclient -y
+  ```
 
-[DEFAULT]
-...
-transport_url = rabbit://openstack:Welcome123@controller
+- Sao lưu các file `/etc/manila/manila-api.conf` trước khi cấu hình
 
-[DEFAULT]
-...
-default_share_type = default_share_type
-share_name_template = share-%s
-rootwrap_config = /etc/manila/rootwrap.conf
-api_paste_config = /etc/manila/api-paste.ini
+  ```sh
+  cp /etc/manila/manila.conf  /etc/manila/manila.conf.org
+  ```
 
+- Sửa các mục dưới đây ở cả 2 file `/etc/manila/manila-api.conf`
+  ```sh
+  [DEFAULT]
+  my_ip = 10.0.0.161
+  transport_url = rabbit://openstack:Welcome123@controller
+  default_share_type = default_share_type
+  share_name_template = share-%s
+  rootwrap_config = /etc/manila/rootwrap.conf
+  api_paste_config = /etc/manila/api-paste.ini
+  auth_strategy = keystone
 
-[DEFAULT]
-...
-auth_strategy = keystone
+  [database]
+  connection = mysql+pymysql://manila:Welcome123@controller/manila
 
-[keystone_authtoken]
-...
-memcached_servers = controller:11211
-auth_uri = http://controller:5000
-auth_url = http://controller:35357
-auth_type = password
-project_domain_id = default
-user_domain_id = default
-project_name = service
-username = manila
-password = Welcome123
+  [keystone_authtoken]
+  memcached_servers = controller:11211
+  auth_uri = http://controller:5000
+  auth_url = http://controller:35357
+  auth_type = password
+  project_domain_id = default
+  user_domain_id = default
+  project_name = service
+  username = manila
+  password = Welcome123  
 
-[DEFAULT]
-...
-my_ip = 10.0.0.161
+  [oslo_concurrency]
+  lock_path = /var/lock/manila
+  ```
+- Đồng bộ database cho manila
 
-[oslo_concurrency]
-...
-lock_path = /var/lock/manila
+  ```sh
+  su -s /bin/sh -c "manila-manage db sync" manila
+  rm -f /var/lib/manila/manila.sqlite
+  ```
+  
+- Restart dịch vụ manila.
 
-su -s /bin/sh -c "manila-manage db sync" manila
+  ```sh
+  service manila-scheduler restart
+  service manila-api restart
+  ```
 
-service manila-scheduler restart
-service manila-api restart
+## 4. Thực hiện trên host Manila
+### 4.1. Cài đặt NTP.
+- Cài gói chrony.
 
-rm -f /var/lib/manila/manila.sqlite
+  ```sh
+  apt install chrony -y
+  ```
 
+- Mở file `/etc/chrony/chrony.conf` bằng vi và thêm vào các dòng sau:
+- commnet dòng sau:
 
-MANILA:
-apt install chrony -y
-vim /etc/chrony/chrony.conf
+  ```sh
+  #pool 2.debian.pool.ntp.org offline iburst
+  ```
 
-Comment pool 2.debian.pool.ntp.org offline iburst
-server controller iburst
+- Thêm các dòng sau:
 
-service chrony restart
+  ```sh
+  server controller iburst
+  ```
+  
+- Restart dịch vụ NTP
 
-chronyc sources
- 210 Number of sources = 1
+  ```sh
+  service chrony restart
+  ```
+
+- Kiểm tra Chrony
+
+  ```sh
+  chronyc sources
+  ```
+
+  Kết quả:
+
+  ```sh
+  210 Number of sources = 1
  MS Name/IP address         Stratum Poll Reach LastRx Last sample
  ===============================================================================
  ^* controller                    3   6    17    23    -10ns[+6000ns] +/-  248ms
+  ```
 
- apt install software-properties-common -y
- add-apt-repository cloud-archive:pike -y
+## 4.2. Update package
+- Cài đặt gói để cài OpenStack PIKE
 
- apt -y update && apt -y dist-upgrade
+  ```sh
+  apt install software-properties-common -y
+  add-apt-repository cloud-archive:pike -y
+  ``` 
+  
+- Cập nhật các gói phần mềm
 
- apt install python-openstackclient -y
+  ```sh
+  apt -y update && apt -y dist-upgrade
+  ```
+- Cài đặt các gói client của OpenStack.
 
-apt-get install manila-share python-pymysql -y
+  ```sh
+  apt install python-openstackclient -y
+  ```
+- Cài đặt Manila share
+  ```sh
+  apt-get install manila-share python-pymysql -y
+  ```
 
-cp /etc/manila/manila.conf /etc/manila/manila.conf.org
+- Sao lưu các file `/etc/manila/manila-api.conf` trước khi cấu hình
 
-[database]
-...
-connection = mysql+pymysql://manila:Welcome123@controller/manila
+  ```sh
+  cp /etc/manila/manila.conf  /etc/manila/manila.conf.org
+  ```
 
-[DEFAULT]
-...
-transport_url = rabbit://openstack:Welcome123@controller
+- Sửa các mục dưới đây ở cả 2 file `/etc/manila/manila-api.conf`
+  ```sh
+  [DEFAULT]
+  my_ip = 10.0.0.163
+  transport_url = rabbit://openstack:Welcome123@controller
+  default_share_type = default_share_type
+  rootwrap_config = /etc/manila/rootwrap.conf
+  auth_strategy = keystone
 
-[DEFAULT]
-...
-default_share_type = default_share_type
-rootwrap_config = /etc/manila/rootwrap.conf
+  [database]
+  connection = mysql+pymysql://manila:Welcome123@controller/manila
 
-[DEFAULT]
-...
-auth_strategy = keystone
+  [keystone_authtoken]
+  memcached_servers = controller:11211
+  auth_uri = http://controller:5000
+  auth_url = http://controller:35357
+  auth_type = password
+  project_domain_id = default
+  user_domain_id = default
+  project_name = service
+  username = manila
+  password = Welcome123
 
-[keystone_authtoken]
-...
-memcached_servers = controller:11211
-auth_uri = http://controller:5000
-auth_url = http://controller:35357
-auth_type = password
-project_domain_id = default
-user_domain_id = default
-project_name = service
-username = manila
-password = Welcome123
+  [oslo_concurrency]
+  lock_path = /var/lock/manila
+  ```
 
-[DEFAULT]
-...
-my_ip = 10.0.0.163
+## 4.3. Trên host Controller, dùng lệnh sau để kiểm tra các service manila
+  ```sh
+  manila service-list
+  ```
+  Kết quả:
+  ```sh
+  +----+------------------+----------------------+------+---------+-------+----------------------------+
+  | Id | Binary           | Host                 | Zone | Status  | State | Updated_at                 |
+  +----+------------------+----------------------+------+---------+-------+----------------------------+
+  | 1  | manila-scheduler | controller           | nova | enabled | up    | 2017-11-27T09:42:36.000000 |
+  | 2  | manila-share     | manila@cephfsnative1 | nova | enabled | up    | 2017-11-27T09:41:48.000000 |
+  | 3  | manila-share     | manila@generic       | nova | enabled | up    | 2017-11-27T09:41:48.000000 |
+  | 4  | manila-share     | manila@lvm           | nova | enabled | up    | 2017-11-27T09:41:45.000000 |
+  +----+------------------+----------------------+------+---------+-------+----------------------------+
+  
+  ```
 
-[oslo_concurrency]
-...
-lock_path = /var/lock/manila
+
+
+
+
+
+
+
+
+
+
+
+MANILA:
+
+
+
+ 
+
+
+
 
 
 CEPH1:
