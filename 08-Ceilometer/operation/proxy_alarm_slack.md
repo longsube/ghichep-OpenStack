@@ -56,15 +56,15 @@ update-rc.d alarm_proxy.py defaults
 ## 2. Cấu hình Slack
 *Lưu ý: Tài khoản cấu hình phải có quyền Owner trên team nhận alarm*
 
-![alarmslack](images/alarm_slack_1.png)
+![alarmslack](../images/alarm_slack_1.png)
 
-![alarmslack](images/alarm_slack_2.png)
+![alarmslack](../images/alarm_slack_2.png)
 
-![alarmslack](images/alarm_slack_3.png)
+![alarmslack](../images/alarm_slack_3.png)
 
-![alarmslack](images/alarm_slack_4.png)
+![alarmslack](../images/alarm_slack_4.png)
 
-![alarmslack](images/alarm_slack_5.png)
+![alarmslack](../images/alarm_slack_5.png)
 
 Tham khảo:
 
