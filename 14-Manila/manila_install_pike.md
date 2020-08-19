@@ -3,13 +3,13 @@
 ## 1. Mô hình cài đặt
 - Mô hình cài đặt Lab OPS Pike trên Ubuntu 16.04 64-bit
   
-  ![MohinhCaiDat](../images/manila.jpg)
+  ![MohinhCaiDat](/images/manila.jpg)
   
 <a name=2></a>
 ## 2. IP Planning
 - Phân hoạch địa chỉ Ip và yêu cầu phần cứng
 
-  ![PhanHoachIP](../images/ip_pike.png)
+  ![PhanHoachIP](/images/ip_pike.png)
   
 <a name=3></a>
 ## 3. Thực hiện trên host Controller
